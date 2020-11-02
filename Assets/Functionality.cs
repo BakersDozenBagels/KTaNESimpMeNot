@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System.Text.RegularExpressions;
@@ -263,17 +264,18 @@ public class Functionality : MonoBehaviour {
                 {
                     deactMethod = 4;
                     //Add colors
+                    int next = -1;
                     int count = 0;
                     for (int i = 0; i < 7; i++)
                     {
-                        colorActionsLight[i] = Random.Range(0, 5) == 0 ? 1 : 0;
-                        count += colorActionsLight[i] + colorActionsMain[i];
+                        colorActionsLight[i] = Random.Range(0, 5) == 0 ? next++ % 3 + 1 : 0;
+                        count += Min(colorActionsLight[i], 1);
                         if (count > 5) { break; }
                     }
                     while (count < 3)
                     {
                         int i = Random.Range(0, 7);
-                        if (colorActionsLight[i] == 0) { colorActionsLight[i] = 1; count++; }
+                        if (colorActionsLight[i] == 0) { colorActionsLight[i] = next++ % 3 + 1; count++; }
                     }
                 }
                 break;
@@ -324,17 +326,18 @@ public class Functionality : MonoBehaviour {
                 {
                     deactMethod = 12;
                     //Add colors
+                    int next = -1;
                     int count = 0;
                     for (int i = 0; i < 7; i++)
                     {
-                        colorActionsLight[i] = Random.Range(0, 5) == 0 ? 1 : 0;
-                        count += colorActionsMain[i] + colorActionsMain[i];
+                        colorActionsMain[i] = Random.Range(0, 5) == 0 ? next++ % 3 + 1 : 0;
+                        count += Min(colorActionsMain[i], 1);
                         if (count > 5) { break; }
                     }
                     while (count < 3)
                     {
                         int i = Random.Range(0, 7);
-                        if (colorActionsMain[i] == 0) { colorActionsMain[i] = 1; count++; }
+                        if (colorActionsMain[i] == 0) { colorActionsMain[i] = next++ % 3 + 1; count++; }
                     }
                 }
                 break;
@@ -345,6 +348,10 @@ public class Functionality : MonoBehaviour {
         goalColor = Random.Range(1,4);
 
         Debug.LogFormat("[Nomai #{0}] Goal color: {1}", _moduleId, COLORS[goalColor]);
+
+        Debug.LogFormat("[Nomai #{0}] Color Table:", _moduleId);
+        Debug.LogFormat("{0}{1}{2}{3}{4}{5}{6}", colorActionsLight[0], colorActionsLight[1], colorActionsLight[2], colorActionsLight[3], colorActionsLight[4], colorActionsLight[5], colorActionsLight[6]);
+        Debug.LogFormat("{0}{1}{2}{3}{4}{5}{6}", colorActionsMain[0], colorActionsMain[1], colorActionsMain[2], colorActionsMain[3], colorActionsMain[4], colorActionsMain[5], colorActionsMain[6]);
     }
 
     IEnumerator timer()
@@ -410,9 +417,19 @@ public class Functionality : MonoBehaviour {
                         reRender();
                     }
 
-                    if ((string)timeEvents[e] == "Color Change")
+                    if ((string)timeEvents[e] == "Color Change From 1")
                     {
-                        ChangeColor(-1);
+                        ChangeColor(1);
+                    }
+
+                    if ((string)timeEvents[e] == "Color Change From 2")
+                    {
+                        ChangeColor(2);
+                    }
+
+                    if ((string)timeEvents[e] == "Color Change From 3")
+                    {
+                        ChangeColor(3);
                     }
 
                     if ((string)timeEvents[e] == "Color Add")
@@ -440,7 +457,7 @@ public class Functionality : MonoBehaviour {
         if (!_lightsOn || _isSolved || _isResetting) { return; }
         Debug.LogFormat("[Nomai #{0}] Main button pressed.", _moduleId);
         AddAction(_isSixth ? 6 : planetPatterns[planetsOrder[5]],6,false);
-        if (colorActionsMain[_isSixth ? 6 : planetsOrder[5]] == 1)
+        if (colorActionsMain[_isSixth ? 6 : planetsOrder[5]] >= 1)
         {
             if (barColor == 0)
             {
@@ -449,10 +466,10 @@ public class Functionality : MonoBehaviour {
             }
             else
             {
-                timeEvents.Add("Color Change");
+                timeEvents.Add("Color Change From " + barColor);
                 timeEventsTimes.Add((float)timeRatio);
             }
-            ChangeColor(1);
+            ChangeColor(colorActionsMain[_isSixth ? 6 : planetsOrder[5]]);
         }
         _isDeact = _isDeact || checkDeact();
         if (_isDeact) { Debug.LogFormat("[Nomai #{0}] Careful! Looping mechanism disabled.", _moduleId); }
@@ -465,7 +482,7 @@ public class Functionality : MonoBehaviour {
         if (!_lightsOn || _isSolved || _isResetting) { return; }
         Debug.LogFormat("[Nomai #{0}] Status light pressed.", _moduleId);
         AddAction(_isSixth ? 6 : planetPatterns[planetsOrder[5]], 7, false);
-        if(colorActionsLight[_isSixth ? 6 : planetsOrder[5]] == 1)
+        if(colorActionsLight[_isSixth ? 6 : planetsOrder[5]] >= 1)
         {
             if (barColor == 0)
             {
@@ -474,10 +491,10 @@ public class Functionality : MonoBehaviour {
             }
             else
             {
-                timeEvents.Add("Color Change");
+                timeEvents.Add("Color Change From " + barColor);
                 timeEventsTimes.Add((float)timeRatio);
             }
-            ChangeColor(1);
+            ChangeColor(colorActionsLight[_isSixth ? 6 : planetsOrder[5]]);
         }
         _isDeact = _isDeact || checkDeact();
         if (_isDeact) { Debug.LogFormat("[Nomai #{0}] Careful! Looping mechanism disabled.", _moduleId); }
@@ -608,6 +625,7 @@ public class Functionality : MonoBehaviour {
             Debug.LogFormat("[Nomai #{0}] Real solve! Congratulations!", _moduleId);
             FakeStatusLight.HandlePass();
             StopAllCoroutines();
+            barControl.gameObject.transform.localScale = new Vector3(0f, 0f, 0f);
             return;
         }
 
@@ -762,26 +780,23 @@ public class Functionality : MonoBehaviour {
         previous3[0] = new Action(fromId, buttonId, struck, buttonId <= 5 ? planetPatterns[planetsOrder[buttonId]] : -1);
     }
 
-    void ChangeColor(int dir)
+    void ChangeColor(int to)
     {
-        if (dir == 1) { barColor += 2; }
-        barColor -= 1;
-        if (barColor == 4) { barColor = 1; }
-        if (barColor == 0) { barColor = 3; }
-        if (barColor < 0 || barColor > 4) { barColor = 1; }
+        barColor = to;
         bar.material = barMats[barColor];
         Debug.LogFormat("[Nomai #{0}] Timer color changed to {1}.", _moduleId, COLORS[barColor]);
     }
 
     void addColorsRandom(int disabled)
     {
+        int next = -1;
         int count = 0;
         for (int i = 0; i < 7; i++)
         {
             if (i == disabled) { colorActionsLight[i] = 0; colorActionsMain[i] = 0; continue; }
-            colorActionsLight[i] = Random.Range(0, 5) == 0 ? 1 : 0;
-            colorActionsMain[i] = Random.Range(0, 5) == 0 ? 1 : 0;
-            count += colorActionsLight[i] + colorActionsMain[i];
+            colorActionsLight[i] = Random.Range(0, 5) == 0 ? next++ % 3 + 1 : 0;
+            colorActionsMain[i] = Random.Range(0, 5) == 0 ? next++ % 3 + 1 : 0;
+            count += Min(colorActionsLight[i], 1) + Min(colorActionsMain[i], 1);
             if (count > 7) { break; }
         }
         while (count < 3)
@@ -790,9 +805,14 @@ public class Functionality : MonoBehaviour {
             if (i != disabled)
             {
                 int choice = Random.Range(0, 2);
-                if (choice == 1 && colorActionsLight[i] == 0) { colorActionsLight[i] = 1; count++; }
-                else if (colorActionsMain[i] == 0) { colorActionsMain[i] = 1; count++; }
+                if (choice == 1 && colorActionsLight[i] == 0) { colorActionsLight[i] = next++ % 3 + 1; count++; }
+                else if (colorActionsMain[i] == 0) { colorActionsMain[i] = next++ % 3 + 1; count++; }
             }
         }
+    }
+
+    private int Min(int a, int b)
+    {
+        return a < b ? a : b;
     }
 }
